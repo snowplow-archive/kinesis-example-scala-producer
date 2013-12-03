@@ -44,10 +44,8 @@ object BuildSettings {
   import AssemblyKeys._
   /* lazy val sbtAssemblySettings = assemblySettings ++ Seq(
     // Slightly cleaner jar name
-    jarName in assembly <<= { (name, version) { (name, version) =>
-      "%s-%s.jar".format(name, version)
-    }
+    jarName in assembly <<= (name, version) { (name, version) => name + "-" + version + ".jar" }
   ) */
 
-  lazy val buildSettings = basicSettings ++ scalifySettings ++ assemblySettings // sbtAssemblySettings
+  lazy val buildSettings = basicSettings ++ scalifySettings ++ assemblySettings // ++ sbtAssemblySettings
 }
