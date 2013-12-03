@@ -81,7 +81,7 @@ This file is only available to those on the Amazon Kinesis private beta.
 
 **Is a Kinesis event producer the right place to put stream setup code?**
 
-Probably not - best practice would be to handle this as part of your standard AWS devops flow, assigning appropriately-locked down IAM permissions etc. However, this functionality is included in this project, to simplify getting started.
+Probably not - best practice would be to handle this as part of your standard AWS devops flow, assigning appropriately-locked down IAM permissions etc. However, this stream setup functionality is included in this project, to simplify getting started.
 
 **What about an example Kinesis event consumer aka "Kinesis application" in Scala?**
 
