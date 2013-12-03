@@ -89,11 +89,11 @@ We are working on one! Stay tuned.
 
 ## Roadmap
 
-1. Add support for ordered events in the stream [#1](#1)
-2. Add logging output to the producer [#2](#2)
-3. Add live Kinesis integration tests to the test suite [#3](#3)
-4. Add ability to send events as Thrift [#4](#4) or Avro [#5](#5)
-5. Rebase to run on top of Akka (maybe) [#6](#6)
+1. Add support for ordered events in the stream [[#1]](#1)
+2. Add logging output to the producer [[#2]](#2)
+3. Add live Kinesis integration tests to the test suite [[#3]](#3)
+4. Add ability to send events as Thrift [[#4]](#4) or Avro [[#5]](#5)
+5. Rebase to run on top of Akka (maybe) [[#6]](#6)
 
 If you would like to help with any of these, feel free to submit a pull request.
 
