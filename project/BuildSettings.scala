@@ -42,10 +42,12 @@ object BuildSettings {
   // sbt-assembly settings for building a fat jar
   import sbtassembly.Plugin._
   import AssemblyKeys._
-  /* lazy val sbtAssemblySettings = assemblySettings ++ Seq(
+  lazy val sbtAssemblySettings = assemblySettings ++ Seq(
     // Slightly cleaner jar name
-    jarName in assembly <<= (name, version) { (name, version) => name + "-" + version + ".jar" }
-  ) */
+    jarName in assembly := {
+      name.value + "-" + version.value + ".jar"
+    }
+  )
 
-  lazy val buildSettings = basicSettings ++ scalifySettings ++ assemblySettings // ++ sbtAssemblySettings
+  lazy val buildSettings = basicSettings ++ scalifySettings ++ sbtAssemblySettings
 }

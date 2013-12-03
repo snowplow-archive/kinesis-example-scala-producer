@@ -22,7 +22,7 @@ Now manually copy the relevant jar from your Amazon Kinesis SDK Preview:
 
 The 'fat jar' is now available as:
 
-    target/scala-2.10/kinesis-example-scala-producer-assembly-0.0.1.jar
+    target/scala-2.10/kinesis-example-scala-producer-0.0.1.jar
 
 ## Unit testing
 
@@ -63,7 +63,7 @@ You can leave the rest of the settings for now.
 
 Next, run the event producer, making sure to specify your new config file and create a new stream:
 
-    $ java -jar target/scala-2.10/kinesis-example-scala-producer-assembly-0.0.1.jar --config ./my.conf --create 
+    $ java -jar target/scala-2.10/kinesis-example-scala-producer-0.0.1.jar --config ./my.conf --create 
 
 Finally, verify that events are being sent to your stream in the [Kinesis Management Console] [kinesis-ui]:
 
