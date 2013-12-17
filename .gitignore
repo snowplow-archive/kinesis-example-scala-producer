@@ -1,5 +1,6 @@
 *.class
 *.log
+*.conf
 
 # sbt specific
 dist/*
