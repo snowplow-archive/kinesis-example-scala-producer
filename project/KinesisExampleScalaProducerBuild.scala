@@ -35,6 +35,7 @@ object KinesisExampleScalaProducerBuild extends Build {
         Libraries.argot,
         Libraries.config,
         Libraries.scalaUtil,
+        Libraries.scalazon,
         Libraries.specs2
         // Add your additional libraries here (comma-separated)...
       )
