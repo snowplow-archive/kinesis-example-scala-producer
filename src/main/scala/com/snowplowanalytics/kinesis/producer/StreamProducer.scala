@@ -160,7 +160,7 @@ case class StreamProducer(config: Config) {
     for (nextRecord <- nextRecordIter) {
       for (record <- nextRecord.records) {
         println("sequenceNumber: " + record.sequenceNumber)
-        println("data: " + record.data.asCharBuffer())
+        println("data: " + new String(record.data.array()))
         println("partitionKey: " + record.partitionKey)
       }
     }
