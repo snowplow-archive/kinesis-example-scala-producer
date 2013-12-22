@@ -21,7 +21,8 @@ object BuildSettings {
     version               :=  "0.0.1",
     description           :=  "An example event producer for Amazon Kinesis",
     scalaVersion          :=  "2.10.1",
-    scalacOptions         :=  Seq("-deprecation", "-encoding", "utf8"),
+    scalacOptions         :=  Seq("-deprecation", "-encoding", "utf8",
+                                  "-feature"),
     scalacOptions in Test :=  Seq("-Yrangepos"),
     resolvers             ++= Dependencies.resolutionRepos
   )
