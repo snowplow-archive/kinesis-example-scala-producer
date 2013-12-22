@@ -78,5 +78,7 @@ object ProducerApp {
 
     // Define and run our pricing mechanism
     sp.produceStream()
+    
+    sp.printRecords()
   }
 }

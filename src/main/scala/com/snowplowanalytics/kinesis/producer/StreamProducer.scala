@@ -22,19 +22,22 @@ import com.amazonaws.auth.{
   ClasspathPropertiesFileCredentialsProvider
 }
 
-// Kinesis
-import com.amazonaws.services.kinesis.AmazonKinesisClient
-import com.amazonaws.services.kinesis.model.{
-  CreateStreamRequest,
-  DescribeStreamRequest,
-  PutRecordRequest
-}
+// Scalazon (for Kinesis interaction)
+import io.github.cloudify.scala.aws.kinesis.Client
+import io.github.cloudify.scala.aws.kinesis.Client.ImplicitExecution._
+import io.github.cloudify.scala.aws.kinesis.Definitions.{Stream,PutResult}
+import io.github.cloudify.scala.aws.kinesis.KinesisDsl._
 
 // Config
 import com.typesafe.config.Config
 
 // SnowPlow Utils
 import com.snowplowanalytics.util.Tap._
+
+// Concurrent utilities.
+import scala.concurrent.{Future,Await,TimeoutException}
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 /**
  * The core logic for the Kinesis event producer
@@ -67,7 +70,8 @@ case class StreamProducer(config: Config) {
   }
 
   // Initialize
-  private val kinesis = createKinesisClient(ProducerConfig.awsAccessKey, ProducerConfig.awsSecretKey)
+  private implicit val kinesis = createKinesisClient(ProducerConfig.awsAccessKey, ProducerConfig.awsSecretKey)
+  private var stream: Option[Stream] = None
 
   /**
    * Creates a new stream. Arguments are
@@ -86,23 +90,29 @@ case class StreamProducer(config: Config) {
    * check if the stream has become active,
    * in seconds
    *
-   * @return an Option-boxed Boolean, where:
-   * 1. None means we did not wait to see if
-   *    the stream became active
-   * 2. Some(true) means the stream became active
+   * @return a Boolean, where:
+   * 1. true means the stream became active
    *    while we were polling its status
-   * 3. Some(false) means the stream did not
+   * 2. false means the stream did not
    *    become active while we were polling 
    */
-  def createStream(name: String = ProducerConfig.streamName, size: Int = ProducerConfig.streamSize, duration: Int = ProducerConfig.apDuration, interval: Int = ProducerConfig.apInterval): Option[Boolean] = {
+  def createStream(
+      name: String = ProducerConfig.streamName,
+      size: Int = ProducerConfig.streamSize,
+      duration: Int = ProducerConfig.apDuration,
+      interval: Int = ProducerConfig.apInterval): Boolean = {
+    val createStream = for {
+      s <- Kinesis.streams.create(name)
+    } yield s
 
-    val createReq = new CreateStreamRequest().tap { r =>
-      r.setStreamName(name)
-      r.setShardCount(size)
+    try {
+      stream = Some(Await.result(createStream, Duration(duration, SECONDS)))
+      Await.result(stream.get.waitActive.retrying(duration),
+        Duration(duration, SECONDS))
+    } catch {
+      case _: TimeoutException => false
     }
-
-    kinesis.createStream(createReq)
-    waitForStream(name, duration, interval)
+    true
   }
 
   /**
@@ -117,14 +127,42 @@ case class StreamProducer(config: Config) {
    * in this stream. Use None for an infinite
    * stream
    */
-  def produceStream(name: String = ProducerConfig.streamName, ordered: Boolean = ProducerConfig.eventsOrdered, limit: Option[Int] = ProducerConfig.eventsLimit) {
+  def produceStream(
+      name: String = ProducerConfig.streamName,
+      ordered: Boolean = ProducerConfig.eventsOrdered,
+      limit: Option[Int] = ProducerConfig.eventsLimit) {
     
+    if (stream.isEmpty) {
+      stream = Some(Kinesis.stream(name))
+    }
+
     def write() = writeExampleRecord(name, System.currentTimeMillis()) // Alias
     (ordered, limit) match {
       case (false, None)    => while (true) { write() }
       case (true,  None)    => throw new RuntimeException("Ordered stream support not yet implemented") // TODO
       case (false, Some(c)) => (1 to c).foreach(_ => write())
       case (true,  Some(c)) => throw new RuntimeException("Ordered stream support not yet implemented") // TODO
+    }
+  }
+
+  // Debugging function to print all records in the current stream.
+  def printRecords() {
+    val getRecords = for {
+      shards <- stream.get.shards.list
+      iterators <- Future.sequence(shards.map {
+        shard => implicitExecute(shard.iterator)
+      })
+      records <- Future.sequence(iterators.map {
+        iterator => implicitExecute(iterator.nextRecords)
+      })
+    } yield records
+    val nextRecordIter = Await.result(getRecords, 30.seconds)
+    for (nextRecord <- nextRecordIter) {
+      for (record <- nextRecord.records) {
+        println("sequenceNumber: " + record.sequenceNumber)
+        println("data: " + record.data.asCharBuffer())
+        println("partitionKey: " + record.partitionKey)
+      }
     }
   }
 
@@ -138,94 +176,15 @@ case class StreamProducer(config: Config) {
    * @return the initialized
    * AmazonKinesisClient
    */
-  private[producer] def createKinesisClient(accessKey: String, secretKey: String): AmazonKinesisClient =
+  private[producer] def createKinesisClient(
+      accessKey: String, secretKey: String): Client =
     if (isCpf(accessKey) && isCpf(secretKey)) {
-      new AmazonKinesisClient(new ClasspathPropertiesFileCredentialsProvider())  
+      Client.fromCredentials(new ClasspathPropertiesFileCredentialsProvider())
     } else if (isCpf(accessKey) || isCpf(secretKey)) {
       throw new RuntimeException("access-key and secret-key must both be set to 'cpf', or neither of them")
     } else {
-      new AmazonKinesisClient(new BasicAWSCredentials(accessKey, secretKey))
+      Client.fromCredentials(accessKey, secretKey)
     }
-
-  /**
-   * Waits until a newly created stream
-   * has status ACTIVE and thus is ready
-   * to send events to.
-   *
-   * @param name The name of the stream
-   * to wait for
-   * @param duration How long to keep
-   * checking if the stream became active,
-   * in seconds
-   * @param interval How frequently to
-   * check if the stream has become active,
-   * in seconds
-   *
-   * @return an Option-boxed Boolean, where:
-   * 1. None means we did not wait to see if
-   *    the stream became active
-   * 2. Some(true) means the stream became active
-   *    while we were polling its status
-   * 3. Some(false) means the stream did not
-   *    become active while we were polling 
-   */
-  private[producer] def waitForStream(name: String, duration: Int, interval: Int): Option[Boolean] = {
-
-    if (duration < 1) {
-      return None // Not waiting for stream
-    }
-
-    val endTime = System.currentTimeMillis() + (duration * 1000)
-    while (System.currentTimeMillis() < endTime) {
-      safeSleep(interval)
-      if (getStreamStatus(name) == Some("ACTIVE")) {
-        return Some(true) // Went active
-      }
-    }
-
-    Some(false) // Never went active
-  }
-
-  /**
-   * Safe sleep routine
-   *
-   * @param duration How long to sleep for,
-   * in seconds
-   */
-  private[producer] def safeSleep(duration: Int) {
-    try {
-      Thread.sleep(duration * 1000)
-    } catch {
-      case e: InterruptedException => // Ignore interruption
-    }
-  }
-
-  /**
-   * Helper to get the current status
-   * of a Kinesis stream
-   *
-   * @param name The name of the stream
-   * to get the status of
-   *
-   * @return an Option boxing either the
-   * stream's status, or None if the
-   * resource doesn't exist yet
-   */
-  private[producer] def getStreamStatus(name: String): Option[String] = {
-    
-    val req = new DescribeStreamRequest().tap { r =>
-      r.setStreamName(name)
-      r.setLimit(1) // Not interested in the shard records
-    }
-    
-    try {
-      val res = kinesis.describeStream(req)
-      Some(res.getStreamDescription.getStreamStatus)
-    } catch {
-      case ase: AmazonServiceException if isResourceNotFoundException(ase) =>
-        None // Stream doesn't exist yet
-    }
-  }
 
   /**
    * Writes an example record to the given
@@ -241,7 +200,7 @@ case class StreamProducer(config: Config) {
    * written to
    */
   private[producer] def writeExampleRecord(stream: String, timestamp: Long): String =
-    writeRecord(stream,
+    writeRecord(
       data = "example-record-%s".format(timestamp),
       key = "partition-key-%s".format(timestamp % 100000)
     )
@@ -249,25 +208,25 @@ case class StreamProducer(config: Config) {
   /**
    * Writes a record to the given stream
    *
-   * @param stream The name of the stream
-   * to write the record to
    * @param data The data for this record
    * @param key The partition key for this
    * record
+   * @param duration Time in seconds to wait
+   * to put the data.
    *
    * @return the shard ID this record was
    * written to
    */
-  private[producer] def writeRecord(stream: String, data: String, key: String): String = {
-
-    val req = new PutRecordRequest().tap { r => 
-      r.setStreamName(stream)
-      r.setData(ByteBuffer.wrap(data.getBytes))
-      r.setPartitionKey(key)
-    }
-    
-    val res = kinesis.putRecord(req)
-    res.getShardId
+  private[producer] def writeRecord(data: String, key: String,
+      duration: Int = ProducerConfig.apDuration): String = {
+    val putData = for {
+      p <- stream.get.put(ByteBuffer.wrap(data.getBytes), key)
+    } yield p
+    //val putResult = Await.result(putData,
+    //  Duration(duration, SECONDS))
+    //putResult.shardId
+    //TODO: Return shard ID written to.
+    ""
   }
 
   /**
@@ -281,8 +240,7 @@ case class StreamProducer(config: Config) {
    * @return true if key is cpf, false
    * otherwise
    */
-  private[producer] def isCpf(key: String): Boolean =
-    (key == "cpf")
+  private[producer] def isCpf(key: String): Boolean = (key == "cpf")
 
   /**
    * Is this exception a ResourceNotFoundException?
