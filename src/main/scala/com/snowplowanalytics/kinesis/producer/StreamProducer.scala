@@ -173,9 +173,10 @@ case class StreamProducer(config: Config) {
         key = "partition-key-%s".format(timestamp % 100000)
       )
     else if (ProducerConfig.streamDataType == "thrift") {
-      val data = new generated.StreamData("example-record", timestamp % 100000)
+      val streamData = new generated.StreamData(
+        "example-record", timestamp % 100000)
       writeRecord(
-        data = ByteBuffer.wrap(thriftSerializer.serialize(data)),
+        data = ByteBuffer.wrap(thriftSerializer.serialize(streamData)),
         key = "partition-key-%s".format(timestamp % 100000)
       )
     } else
@@ -193,37 +194,23 @@ case class StreamProducer(config: Config) {
    */
   private[producer] def writeRecord(data: ByteBuffer, key: String,
       duration: Int = ProducerConfig.apDuration): String = {
+    // TODO: This doesn't look right because putData is of type 'Unit',
+    // but is the same as the example given.
     val putData = for {
-      p <- stream.get.put(data, key)
-    } yield p
-    //val putResult = Await.result(putData,
-    //  Duration(duration, SECONDS))
+      _ <- stream.get.put(data, key)
+    } yield ()
+    Await.result(putData, Duration(duration, SECONDS))
     //putResult.shardId
     //TODO: Return shard ID written to.
     ""
   }
 
   /**
-   * Is the access/secret key set to
-   * the special value "cpf" i.e. use
-   * the classpath properties file
-   * for credentials.
+   * Is the access/secret key set to the special value "cpf" i.e. use
+   * the classpath properties file for credentials.
    *
    * @param key The key to check
-   *
-   * @return true if key is cpf, false
-   * otherwise
+   * @return true if key is cpf, false otherwise
    */
   private[producer] def isCpf(key: String): Boolean = (key == "cpf")
-
-  /**
-   * Is this exception a ResourceNotFoundException?
-   *
-   * @param ase The AmazonServiceException to check
-   *
-   * @return true if it's a ResourceNotFoundException,
-   * false otherwise
-   */
-  private[producer] def isResourceNotFoundException(ase: AmazonServiceException): Boolean = 
-    ase.getErrorCode.equalsIgnoreCase("ResourceNotFoundException")
 }

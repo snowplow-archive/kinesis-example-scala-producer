@@ -73,10 +73,16 @@ object ProducerApp {
 
     // If we have --create, then create the stream first
     if (crte) {
-      sp.createStream()
+      println("Creating stream.")
+      if (!sp.createStream()) {
+        println("Error creating stream. Exiting.")
+        return
+      }
+      println("Successfully created stream.")
     }
 
     // Define and run our pricing mechanism
+    println("Producing event stream.")
     sp.produceStream()
   }
 }
