@@ -34,10 +34,13 @@ import com.typesafe.config.Config
 // SnowPlow Utils
 import com.snowplowanalytics.util.Tap._
 
-// Concurrent utilities.
+// Concurrent libraries.
 import scala.concurrent.{Future,Await,TimeoutException}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+
+// Thrift.
+import org.apache.thrift.TSerializer
 
 /**
  * The core logic for the Kinesis event producer
@@ -56,6 +59,7 @@ case class StreamProducer(config: Config) {
     private val stream = producer.getConfig("stream")
     val streamName = stream.getString("name")
     val streamSize = stream.getInt("size")
+    val streamDataType = stream.getString("data-type")
 
     private val events = producer.getConfig("events")
     val eventsOrdered = events.getBoolean("ordered")
@@ -72,29 +76,22 @@ case class StreamProducer(config: Config) {
   // Initialize
   private implicit val kinesis = createKinesisClient(ProducerConfig.awsAccessKey, ProducerConfig.awsSecretKey)
   private var stream: Option[Stream] = None
+  private val thriftSerializer = new TSerializer()
 
   /**
-   * Creates a new stream. Arguments are
-   * optional - defaults to the values
-   * provided in the ProducerConfig if
-   * not provided.
+   * Creates a new stream. Arguments are optional - defaults to the values
+   * provided in the ProducerConfig if not provided.
    *
-   * @param name The name of the stream
-   * to create
-   * @param size The number of shards to
-   * support for this stream
-   * @param duration How long to keep
-   * checking if the stream became active,
+   * @param name The name of the stream to create
+   * @param size The number of shards to support for this stream
+   * @param duration How long to keep checking if the stream became active,
    * in seconds
-   * @param interval How frequently to
-   * check if the stream has become active,
+   * @param interval How frequently to check if the stream has become active,
    * in seconds
    *
    * @return a Boolean, where:
-   * 1. true means the stream became active
-   *    while we were polling its status
-   * 2. false means the stream did not
-   *    become active while we were polling 
+   * 1. true means the stream became active while we were polling its status
+   * 2. false means the stream did not become active while we were polling 
    */
   def createStream(
       name: String = ProducerConfig.streamName,
@@ -118,14 +115,11 @@ case class StreamProducer(config: Config) {
   /**
    * Produces an (in)finite stream of events.
    *
-   * @param name The name of the stream
-   * to produce events for
-   * @param ordered Whether the sequence
-   * numbers of the events should always be
-   * ordered
-   * @param limit How many events to produce
-   * in this stream. Use None for an infinite
-   * stream
+   * @param name The name of the stream to produce events for
+   * @param ordered Whether the sequence numbers of the events should
+   * always be ordered
+   * @param limit How many events to produce in this stream.
+   * Use None for an infinite stream
    */
   def produceStream(
       name: String = ProducerConfig.streamName,
@@ -145,36 +139,12 @@ case class StreamProducer(config: Config) {
     }
   }
 
-  // Debugging function to print all records in the current stream.
-  def printRecords() {
-    val getRecords = for {
-      shards <- stream.get.shards.list
-      iterators <- Future.sequence(shards.map {
-        shard => implicitExecute(shard.iterator)
-      })
-      records <- Future.sequence(iterators.map {
-        iterator => implicitExecute(iterator.nextRecords)
-      })
-    } yield records
-    val nextRecordIter = Await.result(getRecords, 30.seconds)
-    for (nextRecord <- nextRecordIter) {
-      for (record <- nextRecord.records) {
-        println("sequenceNumber: " + record.sequenceNumber)
-        println("data: " + new String(record.data.array()))
-        println("partitionKey: " + record.partitionKey)
-      }
-    }
-  }
-
   /**
-   * Creates a new Kinesis client from
-   * provided AWS access key and secret
-   * key. If both are set to "cpf", then
-   * authenticate using the classpath
+   * Creates a new Kinesis client from provided AWS access key and secret
+   * key. If both are set to "cpf", then authenticate using the classpath
    * properties file.
    *
-   * @return the initialized
-   * AmazonKinesisClient
+   * @return the initialized AmazonKinesisClient
    */
   private[producer] def createKinesisClient(
       accessKey: String, secretKey: String): Client =
@@ -187,40 +157,44 @@ case class StreamProducer(config: Config) {
     }
 
   /**
-   * Writes an example record to the given
-   * stream. Uses the supplied timestamp
-   * to make the record identifiable.
+   * Writes an example record to the given stream.
+   * Uses the supplied timestamp to make the record identifiable.
    *
-   * @param stream The name of the stream
-   * to write the record to
-   * @param timestamp When this record was
-   * created
+   * @param stream The name of the stream to write the record to
+   * @param timestamp When this record was created
    *
-   * @return the shard ID this record was
-   * written to
+   * @return the shard ID this record was written to
    */
-  private[producer] def writeExampleRecord(stream: String, timestamp: Long): String =
-    writeRecord(
-      data = "example-record-%s".format(timestamp),
-      key = "partition-key-%s".format(timestamp % 100000)
-    )
+  private[producer] def writeExampleRecord(
+      stream: String, timestamp: Long): String =
+    if (ProducerConfig.streamDataType == "string")
+      writeRecord(
+        data = ByteBuffer.wrap("example-record-%s".format(timestamp).getBytes),
+        key = "partition-key-%s".format(timestamp % 100000)
+      )
+    else if (ProducerConfig.streamDataType == "thrift") {
+      val data = new generated.StreamData("example-record", timestamp % 100000)
+      writeRecord(
+        data = ByteBuffer.wrap(thriftSerializer.serialize(data)),
+        key = "partition-key-%s".format(timestamp % 100000)
+      )
+    } else
+      throw new RuntimeException(
+        "data-type configuration must be 'string' or 'thrift'.")
 
   /**
    * Writes a record to the given stream
    *
    * @param data The data for this record
-   * @param key The partition key for this
-   * record
-   * @param duration Time in seconds to wait
-   * to put the data.
+   * @param key The partition key for this record
+   * @param duration Time in seconds to wait to put the data.
    *
-   * @return the shard ID this record was
-   * written to
+   * @return the shard ID this record was written to
    */
-  private[producer] def writeRecord(data: String, key: String,
+  private[producer] def writeRecord(data: ByteBuffer, key: String,
       duration: Int = ProducerConfig.apDuration): String = {
     val putData = for {
-      p <- stream.get.put(ByteBuffer.wrap(data.getBytes), key)
+      p <- stream.get.put(data, key)
     } yield p
     //val putResult = Await.result(putData,
     //  Duration(duration, SECONDS))
