@@ -51,6 +51,7 @@ case class StreamProducer(config: Config) {
   private object ProducerConfig {
 
     private val producer = config.getConfig("producer")
+    val logging = producer.getBoolean("logging")
 
     private val aws = producer.getConfig("aws")
     val awsAccessKey = aws.getString("access-key")
@@ -98,6 +99,7 @@ case class StreamProducer(config: Config) {
       size: Int = ProducerConfig.streamSize,
       duration: Int = ProducerConfig.apDuration,
       interval: Int = ProducerConfig.apInterval): Boolean = {
+    if (ProducerConfig.logging) println(s"Creating stream $name of size $size.")
     val createStream = for {
       s <- Kinesis.streams.create(name)
     } yield s
@@ -107,8 +109,11 @@ case class StreamProducer(config: Config) {
       Await.result(stream.get.waitActive.retrying(duration),
         Duration(duration, SECONDS))
     } catch {
-      case _: TimeoutException => false
+      case _: TimeoutException =>
+        if (ProducerConfig.logging) println("Error: Timed out.")
+        false
     }
+    if (ProducerConfig.logging) println("Successfully created stream.")
     true
   }
 
@@ -125,12 +130,19 @@ case class StreamProducer(config: Config) {
       name: String = ProducerConfig.streamName,
       ordered: Boolean = ProducerConfig.eventsOrdered,
       limit: Option[Int] = ProducerConfig.eventsLimit) {
-    
     if (stream.isEmpty) {
       stream = Some(Kinesis.stream(name))
     }
 
-    def write() = writeExampleRecord(name, System.currentTimeMillis()) // Alias
+    var writeExampleRecord: (String, Long) => PutResult =
+      if (ProducerConfig.streamDataType == "string") {
+        writeExampleStringRecord
+      } else if (ProducerConfig.streamDataType == "thrift") {
+        writeExampleThriftRecord
+      } else {
+        throw new RuntimeException("data-type configuration must be 'string' or 'thrift'.")
+      }
+    def write() = writeExampleRecord(name, System.currentTimeMillis())
     (ordered, limit) match {
       case (false, None)    => while (true) { write() }
       case (true,  None)    => throw new RuntimeException("Ordered stream support not yet implemented") // TODO
@@ -163,25 +175,45 @@ case class StreamProducer(config: Config) {
    * @param stream The name of the stream to write the record to
    * @param timestamp When this record was created
    *
-   * @return the shard ID this record was written to
+   * @return A PutResult containing the ShardId and SequenceNumber
+   *   of the record written to.
    */
-  private[producer] def writeExampleRecord(
-      stream: String, timestamp: Long): String =
-    if (ProducerConfig.streamDataType == "string")
-      writeRecord(
-        data = ByteBuffer.wrap("example-record-%s".format(timestamp).getBytes),
-        key = "partition-key-%s".format(timestamp % 100000)
-      )
-    else if (ProducerConfig.streamDataType == "thrift") {
-      val streamData = new generated.StreamData(
-        "example-record", timestamp % 100000)
-      writeRecord(
-        data = ByteBuffer.wrap(thriftSerializer.serialize(streamData)),
-        key = "partition-key-%s".format(timestamp % 100000)
-      )
-    } else
-      throw new RuntimeException(
-        "data-type configuration must be 'string' or 'thrift'.")
+  private[producer] def writeExampleStringRecord(
+      stream: String, timestamp: Long): PutResult = {
+    if (ProducerConfig.logging) println(s"Writing String record.")
+    val stringData = s"example-record-$timestamp"
+    val stringKey = s"partition-key-${timestamp % 100000}"
+    if (ProducerConfig.logging) println(s"  + data: $stringData")
+    if (ProducerConfig.logging) println(s"  + key: $stringKey")
+    val result = writeRecord(
+      data = ByteBuffer.wrap(stringData.getBytes),
+      key = stringKey
+    )
+    if (ProducerConfig.logging) println(s"Writing successful.")
+    if (ProducerConfig.logging) println(s"  + ShardId: ${result.shardId}")
+    if (ProducerConfig.logging) println(s"  + SequenceNumber: ${result.sequenceNumber}")
+    result
+  }
+
+  private[producer] def writeExampleThriftRecord(
+      stream: String, timestamp: Long): PutResult = {
+    if (ProducerConfig.logging) println(s"Writing Thrift record.")
+    val dataName = "example-record"
+    val dataTimestamp = timestamp % 100000
+    val streamData = new generated.StreamData(dataName, dataTimestamp)
+    val stringKey = s"partition-key-${timestamp % 100000}"
+    if (ProducerConfig.logging) println(s"  + data.name: $dataName")
+    if (ProducerConfig.logging) println(s"  + data.timestamp: $dataTimestamp")
+    if (ProducerConfig.logging) println(s"  + key: $stringKey")
+    val result = writeRecord(
+      data = ByteBuffer.wrap(thriftSerializer.serialize(streamData)),
+      key = stringKey
+    )
+    if (ProducerConfig.logging) println(s"Writing successful.")
+    if (ProducerConfig.logging) println(s"  + ShardId: ${result.shardId}")
+    if (ProducerConfig.logging) println(s"  + SequenceNumber: ${result.sequenceNumber}")
+    result
+  }
 
   /**
    * Writes a record to the given stream
@@ -190,19 +222,16 @@ case class StreamProducer(config: Config) {
    * @param key The partition key for this record
    * @param duration Time in seconds to wait to put the data.
    *
-   * @return the shard ID this record was written to
+   * @return A PutResult containing the ShardId and SequenceNumber
+   *   of the record written to.
    */
   private[producer] def writeRecord(data: ByteBuffer, key: String,
-      duration: Int = ProducerConfig.apDuration): String = {
-    // TODO: This doesn't look right because putData is of type 'Unit',
-    // but is the same as the example given.
+      duration: Int = ProducerConfig.apDuration): PutResult = {
     val putData = for {
-      _ <- stream.get.put(data, key)
-    } yield ()
-    Await.result(putData, Duration(duration, SECONDS))
-    //putResult.shardId
-    //TODO: Return shard ID written to.
-    ""
+      p <- stream.get.put(data, key)
+    } yield p
+    val putResult = Await.result(putData, Duration(duration, SECONDS))
+    putResult
   }
 
   /**
