@@ -40,10 +40,6 @@ object ProducerApp {
     )
   )
 
-  // Optional argument to create the stream
-  val create = parser.flag[Boolean](List("create"),
-                                    "Create the stream before producing events")
-
   // Optional config argument
   val config = parser.option[Config](List("config"),
                                      "filename",
@@ -66,16 +62,13 @@ object ProducerApp {
 
     // Grab the command line arguments
     parser.parse(args)
-    val crte = create.value.getOrElse(false)
     val conf = config.value.getOrElse(ConfigFactory.load("default")) // Fall back to the /resources/default.conf
 
     val sp = StreamProducer(conf)
 
-    // If we have --create, then create the stream first
-    if (crte) {
-      if (!sp.createStream()) {
-        return
-      }
+    // Create the stream if it doesn't exist.
+    if (!sp.createStream()) {
+      return
     }
 
     // Define and run our pricing mechanism

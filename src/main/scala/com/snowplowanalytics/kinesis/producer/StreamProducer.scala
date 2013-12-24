@@ -80,7 +80,8 @@ case class StreamProducer(config: Config) {
   private val thriftSerializer = new TSerializer()
 
   /**
-   * Creates a new stream. Arguments are optional - defaults to the values
+   * Creates a new stream if one doesn't exist.
+   * Arguments are optional - defaults to the values
    * provided in the ProducerConfig if not provided.
    *
    * @param name The name of the stream to create
@@ -91,14 +92,28 @@ case class StreamProducer(config: Config) {
    * in seconds
    *
    * @return a Boolean, where:
-   * 1. true means the stream became active while we were polling its status
-   * 2. false means the stream did not become active while we were polling 
+   * 1. true means the stream was successfully created or already exists
+   * 2. false means an error occurred
    */
   def createStream(
       name: String = ProducerConfig.streamName,
       size: Int = ProducerConfig.streamSize,
       duration: Int = ProducerConfig.apDuration,
       interval: Int = ProducerConfig.apInterval): Boolean = {
+    if (ProducerConfig.logging) println(s"Checking streams for $name.")
+    val streamListFuture = for {
+      s <- Kinesis.streams.list
+    } yield s
+    val streamList: Iterable[String] =
+      Await.result(streamListFuture, Duration(duration, SECONDS))
+    for (stream <- streamList) {
+      if (stream == name) {
+        if (ProducerConfig.logging) println(s"String $name already exists.")
+        return true
+      }
+    }
+
+    if (ProducerConfig.logging) println(s"Stream $name doesn't exist.")
     if (ProducerConfig.logging) println(s"Creating stream $name of size $size.")
     val createStream = for {
       s <- Kinesis.streams.create(name)
