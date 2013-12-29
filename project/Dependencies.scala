@@ -31,7 +31,6 @@ object Dependencies {
     val jacksonCore = "2.3.0"
     val slf4j      = "1.7.5"
     val awsSdk     = "1.6.10"
-    // val awsSdk  = "1.6.4" Only available on Amazon Kinesis private beta, so this is an unmanaged lib
     // Scala
     val argot      = "1.0.1"
     val config     = "1.0.2"
