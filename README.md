@@ -2,27 +2,20 @@
 
 ## Introduction
 
-This is an example event producer for [Amazon Kinesis] [kinesis] written in Scala and packaged as an SBT project.
+This is an example event producer for [Amazon Kinesis] [kinesis] written in
+Scala and packaged as an SBT project.
 
-This was built by the [Snowplow Analytics] [snowplow] team, as part of a proof of concept for porting our event collection and enrichment processes to run on Kinesis.
-
-**Please note:** Amazon Kinesis is currently in private beta. Being on the Kinesis private beta is a pre-requisite to building and running this project.
+This was built by the [Snowplow Analytics] [snowplow] team, as part of a
+proof of concept for porting our event collection and enrichment processes
+to run on Kinesis.
 
 ## Building
 
 Assuming you already have [SBT 0.13.0] [sbt] installed:
 
     $ git clone git://github.com/snowplow/kinesis-example-scala-producer.git
-    
-Now manually copy the relevant jar from your Amazon Kinesis SDK Preview:
-
     $ cd kinesis-example-scala-producer
-    $ cp ~/downloads/AmazonKinesisSDK-preview/aws-java-sdk-1.6.4/lib/aws-java-sdk-1.6.4.jar lib/
-    $ sbt assembly
-
-The 'fat jar' is now available as:
-
-    target/scala-2.10/kinesis-example-scala-producer-0.0.1.jar
+    $ sbt compile
 
 ## Unit testing
 
@@ -41,7 +34,6 @@ Usage: kinesis-example-scala-producer [OPTIONS]
 OPTIONS
 --config filename  Configuration file. Defaults to "resources/default.conf"
                    (within .jar) if not set
---create           Create the stream before producing events
 ```
 
 ## Running
@@ -61,11 +53,14 @@ aws {
 
 You can leave the rest of the settings for now.
 
-Next, run the event producer, making sure to specify your new config file and create a new stream:
+Next, run the event producer, making sure to specify your new config file.
+The stream will be created if it doesn't already exist.
 
-    $ java -jar target/scala-2.10/kinesis-example-scala-producer-0.0.1.jar --config ./my.conf --create 
+    $ sbt "run --config ./my.conf"
 
-Finally, verify that events are being sent to your stream in the [Kinesis Management Console] [kinesis-ui]:
+Finally, verify that events are being sent to your stream by using
+[snowplow/kinesis-example-scala-consumer] [kinesis-consumer] or checking
+the [Kinesis Management Console] [kinesis-ui]:
 
 ![ui-screengrab] [ui-screengrab]
 
@@ -75,17 +70,13 @@ Fork this project and adapt it into your own custom Kinesis event producer.
 
 ## FAQ
 
-**Why isn't aws-java-sdk-1.6.4.jar included in this repo?**
-
-This file is only available to those on the Amazon Kinesis private beta.
-
 **Is a Kinesis event producer the right place to put stream setup code?**
 
-Probably not - best practice would be to handle this as part of your standard AWS devops flow, assigning appropriately-locked down IAM permissions etc. However, this stream setup functionality is included in this project, to simplify getting started.
+Probably not - best practice would be to handle this as part of yourstandard AWS devops flow, assigning appropriately-locked down IAM permissions etc. However, this stream setup functionality is included in this project, to simplify getting started.
 
 **What about an example Kinesis event consumer aka "Kinesis application" in Scala?**
 
-We are working on one! Stay tuned.
+See [snowplow/kinesis-example-scala-consumer] [kinesis-consumer].
 
 ## Roadmap
 
@@ -115,6 +106,7 @@ limitations under the License.
 [snowplow]: http://snowplowanalytics.com
 [sbt]: http://typesafe.artifactoryonline.com/typesafe/ivy-releases/org.scala-sbt/sbt-launch/0.13.0/sbt-launch.jar
 
+[kinesis-consumer]: https://github.com/snowplow/kinesis-example-scala-consumer
 [kinesis-ui]: https://console.aws.amazon.com/kinesis/?
 [ui-screengrab]: misc/kinesis-stream-summary.png
 
