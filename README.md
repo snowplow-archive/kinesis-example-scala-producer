@@ -36,9 +36,6 @@ To come.
 
 ## Usage
 
-We recommend running the consumer *before* you have run the 
-[kinesis-example-scala-consumer] [consumer].
-
 The event producer has the following command-line interface:
 
 ```
@@ -97,7 +94,7 @@ Probably not - best practice would be to handle this as part of your standard AW
 
 **What about an example Kinesis event consumer aka "Kinesis application" in Scala?**
 
-See [snowplow/kinesis-example-scala-consumer] [kinesis-consumer].
+See [snowplow/kinesis-example-scala-consumer] [consumer].
 
 ## Roadmap
 
