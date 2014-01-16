@@ -39,7 +39,7 @@ To come.
 The event producer has the following command-line interface:
 
 ```
-kinesis-example-scala-producer: Version 0.0.1. Copyright (c) 2013, Snowplow
+kinesis-example-scala-producer: Version 0.1.0. Copyright (c) 2013, Snowplow
 Analytics Ltd.
 
 Usage: kinesis-example-scala-producer [OPTIONS]
