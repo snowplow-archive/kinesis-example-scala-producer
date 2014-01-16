@@ -220,8 +220,8 @@ case class StreamProducer(config: Config) {
     if (ProducerConfig.logging) println(s"  + data.name: $dataName")
     if (ProducerConfig.logging) println(s"  + data.timestamp: $dataTimestamp")
     if (ProducerConfig.logging) println(s"  + key: $stringKey")
-    this.serialize{ 
-      val result = writeRecord(
+    val result = this.synchronized{ 
+      writeRecord(
         data = ByteBuffer.wrap(thriftSerializer.serialize(streamData)),
         key = stringKey
       )
