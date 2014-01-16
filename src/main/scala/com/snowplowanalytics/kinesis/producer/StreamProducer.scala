@@ -220,10 +220,12 @@ case class StreamProducer(config: Config) {
     if (ProducerConfig.logging) println(s"  + data.name: $dataName")
     if (ProducerConfig.logging) println(s"  + data.timestamp: $dataTimestamp")
     if (ProducerConfig.logging) println(s"  + key: $stringKey")
-    val result = writeRecord(
-      data = ByteBuffer.wrap(thriftSerializer.serialize(streamData)),
-      key = stringKey
-    )
+    this.serialize{ 
+      val result = writeRecord(
+        data = ByteBuffer.wrap(thriftSerializer.serialize(streamData)),
+        key = stringKey
+      )
+    }
     if (ProducerConfig.logging) println(s"Writing successful.")
     if (ProducerConfig.logging) println(s"  + ShardId: ${result.shardId}")
     if (ProducerConfig.logging) println(s"  + SequenceNumber: ${result.sequenceNumber}")
