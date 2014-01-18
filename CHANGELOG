@@ -1,3 +1,7 @@
+Version 0.1.1 (2014-01-18)
+--------------------------
+Added synchronize to work around Thrift de/serialization not being multithreaded (#10)
+
 Version 0.1.0 (2014-01-15)
 --------------------------
 Added ability to send events as Thrift (#4)
