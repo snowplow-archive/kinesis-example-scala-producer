@@ -64,7 +64,7 @@ aws {
 }
 ```
 
-Make sure that the AWS credentials you use hav the permissions requried to:
+Make sure that the AWS credentials you use have the permissions required to:
 
 1. Create and write to the Kinesis stream specified in the config file
 2. Create tables in DynamoDB
