@@ -14,11 +14,11 @@ This has been built to run in conjunction with the
 
 ## Pre-requisites
 
-This project requires Java 1.7 and SBT 0.13.0.
+This project requires Java 1.7, SBT 0.13.0 and Thrift.
 
 If you are running Vagrant, you can run it using the Snowplow
-[dev environment] [dev-environment]. Make sure you run the [jvm-7] [jvm-7]
-Ansible Playbook to install both the required Java version and SBT. 
+[dev environment] [dev-environment]. Make sure you run the [snowplow-realtime-pipeline.yml
+] [playbook] Ansible Playbook to install the required Java version, SBT and Thrift. 
 Instructions on using Ansible to run the different playbooks can be found on the 
 [dev environment README] [dev-env-readme].
 
@@ -127,7 +127,7 @@ limitations under the License.
 
 [dev-environment]: https://github.com/snowplow/dev-environment
 [dev-env-readme]: https://github.com/snowplow/dev-environment/blob/master/README.md
-[jvm-7]: https://github.com/snowplow/ansible-playbooks/blob/master/generic/jvm/jvm-7.yaml
+[playbook]: https://github.com/snowplow/ansible-playbooks/blob/master/snowplow-batch-pipeline.yml
 
 [kinesis-consumer]: https://github.com/snowplow/kinesis-example-scala-consumer
 [kinesis-ui]: https://console.aws.amazon.com/kinesis/?
