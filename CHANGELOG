@@ -1,3 +1,10 @@
+Version 0.1.2 (2015-03-29)
+--------------------------
+Allowing compilation on Java 8 and small fixes, thanks @petervandenabeele (#14)
+Added dedicated Vagrant setup (#15)
+Added Vagrant quickstart to README (#16)
+Fixed incorrect organization string (#17)
+
 Version 0.1.1 (2014-01-18)
 --------------------------
 Added synchronize to work around Thrift de/serialization not being multithreaded (#10)
