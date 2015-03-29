@@ -18,9 +18,9 @@ object BuildSettings {
   // Basic settings for our app
   lazy val basicSettings = Seq[Setting[_]](
     organization          :=  "Snowplow Analytics Ltd",
-    version               :=  "0.1.1",
+    version               :=  "0.1.2",
     description           :=  "An example event producer for Amazon Kinesis",
-    scalaVersion          :=  "2.10.1",
+    scalaVersion          :=  "2.10.4",
     scalacOptions         :=  Seq("-deprecation", "-encoding", "utf8",
                                   "-feature"),
     scalacOptions in Test :=  Seq("-Yrangepos"),

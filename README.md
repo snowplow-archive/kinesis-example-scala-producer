@@ -9,12 +9,15 @@ This was built by the [Snowplow Analytics] [snowplow] team, as part of a
 proof of concept for porting our event collection and enrichment processes
 to run on Kinesis.
 
-This has been built to run in conjunction with the 
+This has been built to run in conjunction with the
 [kinesis-example-scala-consumer] [consumer].
 
 ## Pre-requisites
 
-This project requires Java 1.7, SBT 0.13.0 and Thrift.
+This project requires Java 7 or 8, SBT 0.13.0 and Thrift.
+
+On Mac OS X, Thrift is easily installed with `brew install thrift`.
+On Linux, `sudo apt-get install thrift-compiler libthrift-java`
 
 If you are running Vagrant, you can run it using the Snowplow
 [dev environment] [dev-environment]. Make sure you run the [snowplow-realtime-pipeline.yml

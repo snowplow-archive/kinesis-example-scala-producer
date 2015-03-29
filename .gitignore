@@ -10,5 +10,8 @@ src_managed/
 project/boot/
 project/plugins/project/
 
-# Because Kinesis is in private beta
-lib/aws-java-sdk-1.6.4.jar
+# avoid pushing my.conf
+my.conf
+
+# IDEA
+.idea

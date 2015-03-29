@@ -108,7 +108,7 @@ case class StreamProducer(config: Config) {
       Await.result(streamListFuture, Duration(duration, SECONDS))
     for (stream <- streamList) {
       if (stream == name) {
-        if (ProducerConfig.logging) println(s"String $name already exists.")
+        if (ProducerConfig.logging) println(s"Stream $name already exists.")
         return true
       }
     }
