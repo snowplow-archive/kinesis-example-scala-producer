@@ -14,24 +14,24 @@ This has been built to run in conjunction with the
 
 ## Pre-requisites
 
-This project requires Java 7 or 8, SBT 0.13.0 and Thrift.
+This project requires Java 7 or 8, SBT 0.13.0 and Thrift:
 
-On Mac OS X, Thrift is easily installed with `brew install thrift`.
-On Linux, `sudo apt-get install thrift-compiler libthrift-java`
+* On Mac OS X, Thrift is easily installed with `brew install thrift`.
+* On Linux, `sudo apt-get install thrift-compiler libthrift-java`.
 
-If you are running Vagrant, you can run it using the Snowplow
-[dev environment] [dev-environment]. Make sure you run the [snowplow-realtime-pipeline.yml
-] [playbook] Ansible Playbook to install the required Java version, SBT and Thrift. 
-Instructions on using Ansible to run the different playbooks can be found on the 
-[dev environment README] [dev-env-readme].
+All dependencies are handled for you if you use Vagrant (see next section).
 
 ## Building
 
-Assuming you already have [SBT 0.13.0] [sbt] installed:
+Assuming git, [Vagrant] [vagrant-install] and [VirtualBox] [virtualbox-install] installed:
 
-    $ git clone git://github.com/snowplow/kinesis-example-scala-producer.git
-    $ cd kinesis-example-scala-producer
-    $ sbt compile
+```bash
+ host> git clone https://github.com/snowplow/kinesis-example-scala-producer
+ host> cd kinesis-example-scala-producer
+ host> vagrant up && vagrant ssh
+guest> cd /vagrant
+guest> sbt compile
+```
 
 ## Unit testing
 
@@ -42,7 +42,7 @@ To come.
 The event producer has the following command-line interface:
 
 ```
-kinesis-example-scala-producer: Version 0.1.1. Copyright (c) 2013, Snowplow
+kinesis-example-scala-producer: Version 0.1.2. Copyright (c) 2013, Snowplow
 Analytics Ltd.
 
 Usage: kinesis-example-scala-producer [OPTIONS]
@@ -127,6 +127,9 @@ limitations under the License.
 [snowplow]: http://snowplowanalytics.com
 [sbt]: http://typesafe.artifactoryonline.com/typesafe/ivy-releases/org.scala-sbt/sbt-launch/0.13.0/sbt-launch.jar
 [consumer]: https://github.com/snowplow/kinesis-example-scala-consumer
+
+[vagrant-install]: http://docs.vagrantup.com/v2/installation/index.html
+[virtualbox-install]: https://www.virtualbox.org/wiki/Downloads
 
 [dev-environment]: https://github.com/snowplow/dev-environment
 [dev-env-readme]: https://github.com/snowplow/dev-environment/blob/master/README.md
