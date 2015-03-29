@@ -9,9 +9,3 @@ lib_managed/
 src_managed/
 project/boot/
 project/plugins/project/
-
-# avoid pushing my.conf
-my.conf
-
-# IDEA
-.idea
